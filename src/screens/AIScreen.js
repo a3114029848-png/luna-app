@@ -3,14 +3,26 @@ import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   FlatList, KeyboardAvoidingView, Platform, SafeAreaView,
 } from 'react-native';
-import { chatStream } from '../services/api';
+import { deepseekChatStream } from '../services/api';
+import { handle as handleLocal } from '../services/agentTools';
+import { saveFeedback } from '../services/feedbackStore';
 import { useTheme } from '../theme/ThemeContext';
 
-const QUICK_QUESTIONS = ['痛经原因', '周期不规律怎么办', '黄体期情绪波动', '何时需要就医'];
+// 云端 LLM 的 system prompt（安全边界，与 AI产品设计.md 对齐）
+const SYSTEM_PROMPT =
+  '你是 Luna 的 AI 健康助手，服务对象是记录经期与症状的女性。\n' +
+  '必须遵守：\n' +
+  '1. 你不是医生，不能诊断，不能开药；涉及健康判断时，以"以上为健康科普参考，不构成医疗诊断"结尾。\n' +
+  '2. 涉及剧烈腹痛、大量出血、疑似怀孕/宫外孕/流产等紧急或诊断性问题，必须引导立即就医，不得猜测性回答。\n' +
+  '3. 引用医学信息时尽量给出依据来源（如 FIGO 标准、公开指南）；无法确认来源时说明这是通用建议。\n' +
+  '4. 回答简洁、可落地、有同理心，不要堆砌术语。\n' +
+  '5. 可以使用用户提供的周期/症状数据，但只能做描述与提醒，不得下"你得病了"类结论。';
+
+const QUICK_QUESTIONS = ['我的周期正常吗', '什么时候排卵', '就医指标怎么看', '生成就诊摘要'];
 
 const INIT_MSG = {
   id: '0', role: 'ai',
-  text: '你好，我是 Luna AI 助手。我基于妇产科循证医学文献回答问题，但不替代医生诊断。有什么想了解的吗？',
+  text: '你好，我是 Luna AI 助手。我可以基于你的周期记录和 FIGO 就医指标，直接为你做分析（标「本地分析」）；也可以回答通用健康问题（不替代医生诊断）。试试点下面的问题吧。',
 };
 
 export default function AIScreen() {
@@ -23,26 +35,56 @@ export default function AIScreen() {
   const sendMessage = async (text) => {
     if (!text.trim() || loading) return;
     const userMsg = { id: Date.now().toString(), role: 'user', text };
-    const aiMsg   = { id: (Date.now() + 1).toString(), role: 'ai', text: '' };
 
+    // 1) 本地 Agent 工具层：能基于你的数据/规则/知识库回答的问题，不经过云端 LLM
+    const local = handleLocal(text);
+    if (local) {
+      const source = local.intent === 'dangerous' ? 'safety'
+        : local.intent === 'knowledge' ? 'knowledge'
+        : 'local';
+      setMessages(prev => [...prev, userMsg, {
+        id: (Date.now() + 1).toString(),
+        role: 'ai',
+        text: local.text,
+        source,
+        feedback: null,
+      }]);
+      setInput('');
+      return;
+    }
+
+    // 2) 云端流式对话
+    const aiMsg   = { id: (Date.now() + 1).toString(), role: 'ai', text: '', source: 'cloud', feedback: null };
     setMessages(prev => [...prev, userMsg, aiMsg]);
     setInput('');
     setLoading(true);
 
     try {
-      const history = messages.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
-      await chatStream([...history, { role: 'user', content: text }], (chunk) => {
+      const history = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        ...messages.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
+        { role: 'user', content: text },
+      ];
+      await deepseekChatStream(history, (chunk) => {
         setMessages(prev => prev.map(m =>
           m.id === aiMsg.id ? { ...m, text: m.text + chunk } : m
         ));
       });
-    } catch {
+    } catch (e) {
       setMessages(prev => prev.map(m =>
-        m.id === aiMsg.id ? { ...m, text: '网络异常，请稍后重试。' } : m
+        m.id === aiMsg.id ? { ...m, text: `⚠️ 云端请求失败：${e.message || '请稍后重试'}。本地分析与知识库仍可用。` } : m
       ));
     } finally {
       setLoading(false);
     }
+  };
+
+  // 反馈闭环：用户评价 → 本地持久化（数据飞轮）
+  const rateFeedback = (id, useful, item) => {
+    setMessages(prev => prev.map(m =>
+      m.id === id ? { ...m, feedback: useful ? 'up' : 'down' } : m
+    ));
+    saveFeedback({ messageId: id, source: item.source, useful, text: item.text });
   };
 
   return (
@@ -68,9 +110,40 @@ export default function AIScreen() {
               ? [s.userBubble, { backgroundColor: theme.primary }]
               : [s.aiBubble, { borderColor: theme.mid }],
           ]}>
+            {item.role === 'ai' && item.source === 'local' && (
+              <View style={s.localBadge}>
+                <Text style={s.localBadgeText}>本地分析</Text>
+              </View>
+            )}
+            {item.role === 'ai' && item.source === 'knowledge' && (
+              <View style={[s.localBadge, s.kbBadge]}>
+                <Text style={[s.localBadgeText, s.kbBadgeText]}>知识库</Text>
+              </View>
+            )}
+            {item.role === 'ai' && item.source === 'safety' && (
+              <View style={[s.localBadge, s.safetyBadge]}>
+                <Text style={[s.localBadgeText, s.safetyBadgeText]}>安全提示</Text>
+              </View>
+            )}
             <Text style={[s.bubbleText, { color: item.role === 'user' ? '#fff' : '#222' }]}>
               {item.text || (loading ? '…' : '')}
             </Text>
+            {item.role === 'ai' && (
+              <View style={s.fbRow}>
+                <TouchableOpacity
+                  style={[s.fbBtn, item.feedback === 'up' && s.fbBtnOn]}
+                  onPress={() => rateFeedback(item.id, true, item)}
+                >
+                  <Text style={[s.fbBtnText, item.feedback === 'up' && s.fbBtnTextOn]}>👍 有用</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.fbBtn, item.feedback === 'down' && s.fbBtnOn]}
+                  onPress={() => rateFeedback(item.id, false, item)}
+                >
+                  <Text style={[s.fbBtnText, item.feedback === 'down' && s.fbBtnTextOn]}>👎 没用</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
       />
@@ -120,6 +193,17 @@ const s = StyleSheet.create({
   userBubble: { alignSelf: 'flex-end', borderBottomRightRadius: 4 },
   aiBubble:   { alignSelf: 'flex-start', backgroundColor: '#fff', borderWidth: 0.5, borderBottomLeftRadius: 4 },
   bubbleText: { fontSize: 14, lineHeight: 21 },
+  localBadge: { alignSelf: 'flex-start', backgroundColor: '#e6f1fb', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginBottom: 4 },
+  localBadgeText: { fontSize: 10, color: '#2a5d8f', fontWeight: '600' },
+  kbBadge: { backgroundColor: '#e1f5ee' },
+  kbBadgeText: { color: '#0f6e56' },
+  safetyBadge: { backgroundColor: '#ffe0e3' },
+  safetyBadgeText: { color: '#a32d2d' },
+  fbRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  fbBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 0.5, borderColor: '#d5e3dd', backgroundColor: '#f7fbf9' },
+  fbBtnOn: { backgroundColor: '#e1f5ee', borderColor: '#9fd4bd' },
+  fbBtnText: { fontSize: 11, color: '#777' },
+  fbBtnTextOn: { color: '#0f6e56', fontWeight: '600' },
   quickRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: 12, paddingBottom: 4 },
   quickChip:  { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 0.5 },
   quickText:  { fontSize: 12, fontWeight: '500' },

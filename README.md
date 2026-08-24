@@ -63,10 +63,24 @@ npm start
 npm run android
 ```
 
+## 本地 AI Demo 快速跑通（DeepSeek 直连）
+
+> ⚠️ 仅用于本地真机验证 / 面试演示。API Key 写在客户端会随包分发，**禁止提交 Git / 上架**，生产必须改为后端持有 Key 的代理。
+
+1. 打开 `src/services/api.js`，把 `DEEPSEEK_API_KEY` 改成你自己的 DeepSeek API Key
+2. 真机（USB 连接）：
+   - 终端1：`npm start`
+   - 终端2：`npm run android`
+3. 手机需可联网。到 AI 页输入知识库未覆盖的问题（如「经期可以吃止痛药吗」），即可看到 DeepSeek 流式回答
+4. 常见错误排查：
+   - `DeepSeek 401`：Key 无效或未填写
+   - `DeepSeek 402`：账号余额不足，需到 DeepSeek 开放平台充值
+   - 本地能力（周期分析 / 知识库 / 安全提示）不依赖网络，断网仍可用
+
 ## 待接入项（TODO）
 
-- [ ] `services/api.js` 中 `BASE_URL` 替换为实际后端地址
+- [ ] `services/api.js` 中 `BASE_URL` 替换为实际后端地址（云端 AI 已支持 DeepSeek 直连 demo；`BASE_URL` 为自建后端占位）
 - [ ] `HomeScreen.js` 穿戴数据接入 HealthKit（iOS）/ HUAWEI Health Kit（安卓）
 - [ ] `CalendarScreen.js` / `ObservationScreen.js` 数据源从模拟数据切换为 AsyncStorage + 后端同步
-- [ ] `AIScreen.js` 后端需实现基于医学文献知识库的 RAG 检索逻辑
+- [ ] `AIScreen.js` 云端已直连 DeepSeek；生产建议改为后端代理 + 医学文献 RAG 知识库
 - [ ] 导出 PDF 复诊报告功能的具体实现（建议使用 `react-native-html-to-pdf` 或后端生成）
