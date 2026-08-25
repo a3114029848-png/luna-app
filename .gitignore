@@ -4,3 +4,14 @@ android/build/
 android/app/build/
 *.log
 .expo/
+
+# 个人作品集文档（不上传公开仓库，本地保留）
+AI产品设计.md
+AI成本估算.md
+AI评测集.md
+工作日志.md
+智能耳机竞品分析.md
+竞品分析.md
+简历项目经历.md
+需求分析.md
+面试演示脚本.md
