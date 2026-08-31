@@ -1,0 +1,16 @@
+Everything up-to-date
+PUSH_EXIT=0 
+=== AFTER === 
+## main...origin/main
+?? tempinit/git_check.bat
+?? tempinit/git_check.txt
+?? tempinit/git_check2.bat
+?? tempinit/git_check2.txt
+?? tempinit/git_check3.bat
+?? tempinit/git_check3.txt
+?? tempinit/git_push.bat
+?? tempinit/git_push.txt
+?? tempinit/sing-resume/
+?? tempinit/sing_sync.bat
+?? tempinit/sing_sync.txt
+=== DONE === 

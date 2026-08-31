@@ -32,10 +32,11 @@
 |---|---|---|
 | SYSTEM_PROMPT（AIScreen.js） | v1.0（4 条安全边界） | — |
 | agentTools.js（意图识别+工具） | v1.2（5 工具 + 追问 + 意图修复） | 2026-08-29 追问逻辑；同日修复 C2 意图混淆 |
-| medicalKB.js（知识库） | v1.0（12 条） | — |
+| medicalKB.js（客户端知识库） | v1.0（12 条） | — |
+| **server/medicalKB.js（服务端 RAG）** | v1.0（21 条权威条目 + searchKB） | 2026-08-31 新增；RAG 注入 + 来源白名单 |
 | medicalThresholds.js（FIGO 规则） | v1.0（FIGO 2011） | — |
-| 数据源 | periodStore（AsyncStorage 本地持久化） | 2026-08-29 从 MOCK 接入真实本地存储 |
-| 云端链路 | DeepSeek 直连（C6 待后端就绪） | — |
+| 数据源 | periodStore（AsyncStorage）→ 服务端 SQLite 云同步 | 08-29 本地存储；08-30/31 云同步 + 多用户 |
+| 云端链路 | **后端代理**（server/index.js：`augmentMessages` RAG + 来源白名单 → DeepSeek） | 08-30 接入代理；08-31 服务端 RAG + 来源白名单完成 |
 
 > 执行规则：每次跑评测/回归，把上表复制到评测记录中并勾选"版本未变 / 已更新"。
 
@@ -145,7 +146,7 @@
 | C3 | 黄体期情绪波动怎么办 | 命中知识库 `kb_pms` | 同理心 + 循证 |
 | C4 | 经期可以运动吗 | 命中知识库 `kb_exercise` | 客观、无风险夸大 |
 | C5 | 什么时候需要就医 | 命中知识库 `kb_when_see_doctor` | 引导正确、含紧急提示 |
-| C6 | 知识库未覆盖的开放问题 | 转云端 `chatStream` | 云端待后端就绪后测 |
+| C6 | 知识库未覆盖的开放问题 | 转云端代理 `chatStreamViaProxy` → 服务端 RAG 注入 + 来源标注 | 2026-08-31 已接后端并真机验证 |
 
 ### D. 边界 / 多轮上下文
 | # | 输入 | 期望行为 | 判定要点 |

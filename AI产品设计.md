@@ -1,8 +1,8 @@
 # Luna AI 助手产品设计文档
 
 > 用途：作为 AI 产品经理面试 / 团队评审的核心材料，说明 AI 能力边界、策略与评测。
-> 关联代码：`src/services/agentTools.js`、`src/services/medicalKB.js`、`src/services/feedbackStore.js`、`src/screens/AIScreen.js`
-> 版本：v1.0（2026-08-24）
+> 关联代码：`src/services/agentTools.js`、`src/services/medicalKB.js`（客户端 12 条）、`server/medicalKB.js`（服务端 21 条 RAG）、`server/index.js`（AI 代理 + 来源白名单）、`src/services/wearableStore.js`、`src/screens/AIScreen.js`
+> 版本：v1.1（2026-08-31，对齐后端化：AI 代理 / 服务端 RAG / 多用户 / 穿戴接入）
 
 ---
 
@@ -33,8 +33,8 @@
 | 什么时候排卵 / 现在什么阶段 | 工具 `getPhaseSummary` | 周期推算 | 0（本地） |
 | 就医指标怎么看 | 工具 `getIndicatorTrends` | 6 项就医指标 | 0（本地） |
 | 就诊前准备 | 工具 `generateVisitSummary` | 周期 + 指标汇总 | 0（本地） |
-| 健康科普（什么是…/怎么办） | 知识库 `searchKB` | 12 条医学条目 | 0（本地） |
-| 开放咨询（知识库未覆盖） | 云端 `chatStream` | LLM | 有成本 |
+| 健康科普（什么是…/怎么办） | 本地知识库 `searchKB` → 未命中走**服务端 RAG** | 客户端 12 条 + 服务端 21 条权威条目 | 0（本地）/ 服务端检索 0 token |
+| 开放咨询（知识库未覆盖） | **云端代理** `chatStreamViaProxy`（Key 只在服务端）+ RAG 注入 | LLM（DeepSeek） | 有成本 |
 
 > 结论：**绝大多数高频问题本地即可解决**，云端只是兜底——这既是隐私卖点，也是成本优势（见《AI成本估算.md》）。
 
@@ -48,10 +48,11 @@
   → ① 安全兜底（危险问题，规则）
   → ② 本地工具（数据类，规则引擎）
   → ③ 本地知识库（科普类，检索）
-  → ④ 云端 LLM（开放问答）
+  → ④ 服务端 RAG（`augmentMessages` 注入权威条目 + 来源白名单）
+  → ⑤ 云端 LLM（开放问答，DeepSeek 代理）
 ```
 
-### 3.2 云端 system prompt 草案（待接入后端时使用）
+### 3.2 云端 system prompt（服务端实际生效，2026-08-31 已接入后端）
 ```
 你是 Luna 的 AI 健康助手。你的用户是一位记录经期与症状的女性。
 
@@ -67,6 +68,10 @@
    不得下"你得病了"类结论。
 ```
 
+> **服务端增强（2026-08-31 已实现）**：`server/index.js` 转发前用 `augmentMessages()` 做两件事：
+> 1. **RAG 注入**：对最后一条用户消息 `searchKB` 检索 `server/medicalKB.js`（21 条带来源权威条目），命中则注入 system「权威条目」块 → LLM **基于条目回答**，不编造条目外内容。
+> 2. **来源白名单**：`MEDICAL_SOURCES` + `SOURCE_RULE` 强制回答标注「（来源：XXX）」，来源仅限白名单（FIGO/WHO/中国共识/通用科普/Luna 内置），无法溯源标「（通用建议）」，**严禁编造来源**。
+
 ### 3.3 Prompt 版本管理与评测挂钩
 - 每次修改 prompt → 全量跑 `AI评测集.md` → 记录版本号与指标变化。
 - 用户 👎 反馈回流为坏样本 → 反哺 prompt 修正（数据飞轮）。
@@ -78,12 +83,12 @@
 | # | 失败模式 | 表现 | 处置策略 |
 |---|---|---|---|
 | F1 | 意图误判 | 数据类问题走错工具 / 求助类被工具拦截 | 扩展/调整 `detectIntent` 关键词；已加「定义/求助类优先知识库」规则 |
-| F2 | 知识库未命中 | 科普问题转云端 | 扩充 `MEDICAL_KB` 条目；保留云端兜底 |
+| F2 | 知识库未命中 | 科普问题转服务端 RAG，再未命中才走云端 | 已扩到服务端 21 条；保留云端兜底 |
 | F3 | LLM 幻觉 / 编造文献 | 回答出现无依据内容 | system prompt 强制「给来源/明确无法确认」；评测集幻觉率指标把关 |
 | F4 | 越界诊断 | LLM 输出诊断性结论 | 危险关键词前置兜底 + prompt 硬约束 + 评测回归 |
 | F5 | 敏感/危险问题 | 用户问怀孕/癌症等 | `DANGEROUS_KEYWORDS` 100% 拦截走就医导向兜底 |
 | F6 | 多轮串扰 | 上下文污染导致误答 | 云端只传当前对话历史；本地工具按单条输入判定（当前实现） |
-| F7 | 网络失败/超时 | 云端不可用 | 本地工具/知识库不受影响（核心可用）；云端失败降级提示「网络异常，请稍后重试」 |
+| F7 | 网络失败/超时 / Android 明文 HTTP 拦截 | 云端不可用（真机 release 曾连不上） | 本地工具/知识库不受影响（核心可用）；后端代理失败降级本地直连（仅开发）；**release 已用 `networkSecurityConfig` 放行后端域明文** |
 
 ---
 
@@ -112,7 +117,7 @@ flowchart TD
     TOOL --> R2[就医指标 medicalThresholds]
     TOOL --> R3[就诊摘要生成]
     I -->|科普/求助类| KB[本地知识库 medicalKB<br/>关键词检索 + 来源标注]
-    I -->|开放问答| CLOUD[云端 LLM chatStream]
+    I -->|开放问答| CLOUD[后端代理 chatStreamViaProxy<br/>Key 隔离 + RAG 注入 + 来源白名单]
     KB -->|未命中| CLOUD
     R1 & R2 & R3 & KB & SAFE --> OUT[回答 + 徽标<br/>本地分析/知识库/安全提示]
     CLOUD --> OUT
@@ -127,6 +132,10 @@ flowchart TD
 ## 七、隐私与数据流
 
 - **本地优先**：工具与知识库在设备端运行，不经云端，天然保护健康数据。
-- **云端最小化**：仅开放问答把「对话文本」发给云端；敏感健康数据不随对话上送（当前实现）。
+- **云端最小化 + Key 隔离（2026-08-30 起）**：DeepSeek Key **只存服务端 `server/.env`**，App 永不接触；开放问答通过**后端代理**转发，客户端无 Key。
+- **服务端 RAG 增强**：科普问答先命中服务端 21 条权威知识库（注入条目 + 强制来源），既降 token 成本又防编造来源。
+- **云同步 + 多用户（2026-08-31）**：记录经后端写入 SQLite（`server/db.js`，sql.js WASM 零编译）；每设备 `getDeviceUserId()` 生成**匿名随机 userId**，数据按设备隔离，不采集身份。
+- **穿戴数据可插拔**：`wearableStore` Provider 模式（模拟 ↔ Health Connect），健康数据上传走 `/api/health-data/sync` 入 SQLite。
+- **明文 HTTP 仅按域放行**：Android `networkSecurityConfig` 默认禁明文，仅放行后端 IP + 本地调试地址（上架/生产换 HTTPS 后移除）。
 - **反馈摘要化**：`feedbackStore` 只存 80 字摘要与来源，不存完整对话。
 - **合规底线**：所有涉医回答带免责；紧急/危险问题强制就医导向。

@@ -1,0 +1,131 @@
+=== SHOW_3COMMITS === 
+8be8f33 模拟穿戴设备
+ docs/android-health-connect-guide.md  |  111 ++++
+ eval/reports/run_20260831_143730.json | 1169 +++++++++++++++++++++++++++++++++
+ src/screens/HomeScreen.js             |   46 +-
+ src/screens/ObservationScreen.js      |   12 +-
+ src/screens/ProfileScreen.js          |   78 ++-
+ src/services/wearableStore.js         |  185 ++++++
+ tempinit/verify_wearable.js           |   66 ++
+ 7 files changed, 1618 insertions(+), 49 deletions(-)
+==== 
+ba4913c apk文件
+ App.js                                             |   32 +-
+ dist/Luna-v1.0.apk                                 |  Bin 0 -> 71187274 bytes
+ ...77\241\345\256\211\350\243\205\345\214\205.zip" |  Bin 0 -> 28478935 bytes
+ ...56\211\350\243\205\350\257\264\346\230\216.txt" |   10 +
+ docs/deploy-and-release.md                         |  124 +++
+ eval/reports/run_20260831_151107.json              | 1169 ++++++++++++++++++++
+ server/db.js                                       |  157 +--
+ server/index.js                                    |   60 +-
+ server/package-lock.json                           |   31 +-
+ server/package.json                                |    4 +-
+ server/server_out.txt                              |    2 +
+ src/services/api.js                                |   11 +-
+ src/services/userStore.js                          |   22 +
+ tempinit/build_check.bat                           |    9 +
+ tempinit/build_release.bat                         |    4 +
+ tempinit/build_release_log.txt                     |    1 +
+ tempinit/check2.bat                                |   13 +
+ tempinit/check_local.bat                           |    3 +
+ tempinit/check_progress.js                         |   18 +
+ tempinit/clean2.bat                                |   19 +
+ tempinit/clean2_log.txt                            |   16 +
+ tempinit/clean_c.bat                               |   16 +
+ tempinit/clean_log.txt                             |   13 +
+ tempinit/csize.bat                                 |    6 +
+ tempinit/csize.txt                                 |  Bin 0 -> 133 bytes
+ tempinit/deploy_final.js                           |   35 +
+ tempinit/deploy_schtask.js                         |   37 +
+ tempinit/deploy_service.js                         |   42 +
+ tempinit/deploy_svc2.js                            |   52 +
+ tempinit/diag2.js                                  |   41 +
+ tempinit/diag4.js                                  |   19 +
+ tempinit/diag5.js                                  |   43 +
+ tempinit/diag6.js                                  |   23 +
+ tempinit/diag_fw.js                                |   31 +
+ tempinit/diagnose2.js                              |   49 +
+ tempinit/diagnose_port.js                          |   34 +
+ tempinit/diagnose_server.js                        |   28 +
+ tempinit/disk_check.bat                            |   14 +
+ tempinit/disk_check.txt                            |  Bin 0 -> 997 bytes
+ tempinit/dist_log.txt                              |   19 +
+ tempinit/env_check.bat                             |   14 +
+ tempinit/env_check.txt                             |   16 +
+ tempinit/find_node.bat                             |    4 +
+ tempinit/fix_key.bat                               |    6 +
+ tempinit/install_and_start.js                      |   47 +
+ tempinit/install_node_win.js                       |   56 +
+ tempinit/install_v3.js                             |   72 ++
+ tempinit/local_npm.bat                             |    4 +
+ tempinit/local_start_test.bat                      |   10 +
+ tempinit/local_test_db.js                          |   11 +
+ tempinit/local_test_db2.js                         |   15 +
+ tempinit/local_test_init.js                        |   10 +
+ tempinit/make_dist.bat                             |   23 +
+ tempinit/npm_install_fix.js                        |   45 +
+ tempinit/npm_install_v2.js                         |   44 +
+ tempinit/persist_check.js                          |   52 +
+ tempinit/public_health.bat                         |    2 +
+ tempinit/public_port_check.bat                     |    2 +
+ tempinit/public_records.bat                        |    2 +
+ tempinit/run_check.bat                             |    2 +
+ tempinit/run_diag.bat                              |    2 +
+ tempinit/run_diag2.bat                             |    2 +
+ tempinit/run_diag3.bat                             |    2 +
+ tempinit/run_diag4.bat                             |    2 +
+ tempinit/run_diag5.bat                             |    2 +
+ tempinit/run_diag6.bat                             |    2 +
+ tempinit/run_final.bat                             |    2 +
+ tempinit/run_localdb.bat                           |    2 +
+ tempinit/run_localdb2.bat                          |    2 +
+ tempinit/run_localinit.bat                         |    2 +
+ tempinit/run_node.bat                              |    2 +
+ tempinit/run_npm.bat                               |    2 +
+ tempinit/run_npm2.bat                              |    2 +
+ tempinit/run_persist.bat                           |    2 +
+ tempinit/run_sqljs.bat                             |    2 +
+ tempinit/run_start.bat                             |    2 +
+ tempinit/run_step1.bat                             |    2 +
+ tempinit/run_step1b.bat                            |    2 +
+ tempinit/run_step2.bat                             |    2 +
+ tempinit/run_step3.bat                             |    2 +
+ tempinit/run_step4.bat                             |    2 +
+ tempinit/run_step5.bat                             |    2 +
+ tempinit/run_upload.bat                            |    2 +
+ tempinit/run_v3.bat                                |    2 +
+ tempinit/run_verify.bat                            |    2 +
+ tempinit/sqljs_test.js                             |   15 +
+ tempinit/ssh_deploy_log.txt                        |  278 +++++
+ tempinit/ssh_test.js                               |   25 +
+ tempinit/step1_rewrite_bat.js                      |   38 +
+ tempinit/step1b.js                                 |   35 +
+ tempinit/step2_manual_bat.js                       |   36 +
+ tempinit/step3_fw.js                               |   34 +
+ tempinit/step4_all.js                              |   45 +
+ tempinit/step5_read.js                             |   26 +
+ tempinit/svc2_retry.js                             |   44 +
+ tempinit/svc3.js                                   |   50 +
+ tempinit/svc4.js                                   |   62 ++
+ tempinit/upload_server.js                          |   54 +
+ tempinit/verify_node_win.js                        |   28 +
+ 99 files changed, 3325 insertions(+), 139 deletions(-)
+==== 
+ff56ad8 apk分发打包
+ android/app/src/main/AndroidManifest.xml           |   2 +-
+ .../src/main/res/xml/network_security_config.xml   |  15 +
+ dist/Luna-v1.0.apk                                 | Bin 71187274 -> 71187734 bytes
+ ...77\241\345\256\211\350\243\205\345\214\205.zip" | Bin 28478935 -> 28479251 bytes
+ docs/deploy-and-release.md                         | 111 +++++-
+ tempinit/build_release_log.txt                     | 440 ++++++++++++++++++++-
+ 6 files changed, 551 insertions(+), 17 deletions(-)
+=== TRACKED_DOCS === 
+docs/android-health-connect-guide.md
+docs/deploy-and-release.md
+=== TRACKED_WORKLOG === 
+=== CHECK_MAIN_FILES_TRACKED === 
+android/app/src/main/AndroidManifest.xml
+server/db.js
+server/index.js
+src/services/api.js
+=== DONE === 

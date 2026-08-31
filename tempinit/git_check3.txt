@@ -1,0 +1,18 @@
+=== SHOW_FF56AD8 === 
+ff56ad8 apk分发打包
+ android/app/src/main/AndroidManifest.xml           |   2 +-
+ .../src/main/res/xml/network_security_config.xml   |  15 +
+ dist/Luna-v1.0.apk                                 | Bin 71187274 -> 71187734 bytes
+ ...77\241\345\256\211\350\243\205\345\214\205.zip" | Bin 28478935 -> 28479251 bytes
+ docs/deploy-and-release.md                         | 111 +++++-
+ tempinit/build_release_log.txt                     | 440 ++++++++++++++++++++-
+ 6 files changed, 551 insertions(+), 17 deletions(-)
+=== NSEC_TRACKED === 
+android/app/src/main/res/xml/network_security_config.xml
+=== MANIFEST_LAST_COMMIT === 
+ff56ad8 apk分发打包
+00bfcef Initial commit
+=== DOCS_TRACKED === 
+docs/android-health-connect-guide.md
+docs/deploy-and-release.md
+=== DONE === 

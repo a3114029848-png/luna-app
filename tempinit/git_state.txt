@@ -1,0 +1,27 @@
+=== STATUS === 
+## main...origin/main
+?? tempinit/git_check.bat
+?? tempinit/git_check.txt
+?? tempinit/git_check2.bat
+?? tempinit/git_check2.txt
+?? tempinit/git_check3.bat
+?? tempinit/git_check3.txt
+?? tempinit/git_push.bat
+?? tempinit/git_push.txt
+?? tempinit/git_state.bat
+?? tempinit/git_state.txt
+?? tempinit/md_list.bat
+?? tempinit/md_list.txt
+?? tempinit/md_rm.bat
+?? tempinit/md_rm.txt
+?? tempinit/sing_sync.bat
+?? tempinit/sing_sync.txt
+=== LOG_LOCAL === 
+e06c81f remove personal docs from repo
+ff56ad8 apk分发打包
+ba4913c apk文件
+8be8f33 模拟穿戴设备
+=== LOG_REMOTE === 
+e06c81f remove personal docs from repo
+ff56ad8 apk分发打包
+=== DONE === 
