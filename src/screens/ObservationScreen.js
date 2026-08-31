@@ -9,6 +9,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { FIGO, MEDICAL_INDICATORS, ALERT_STYLES } from '../constants/medicalThresholds';
 import { checkAlerts } from '../utils/cycleCalculator';
 import { getCycleSummaries, getIndicatorTrendsData, loadAll } from '../services/periodStore';
+import { getTempBiphasicTrends, loadWearable } from '../services/wearableStore';
 import { BASE_URL } from '../services/api';
 
 const FLOW_LABELS = ['无', '点滴', '少量', '适中', '偏多'];
@@ -134,11 +135,18 @@ export default function ObservationScreen() {
   const [, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   // 聚焦时刷新：记录/编辑后切回本页立即看到最新趋势（含 PDF 导出按钮）
-  useFocusEffect(useCallback(() => { loadAll().then(refresh); }, []));
+  useFocusEffect(useCallback(() => {
+    loadAll().then(refresh);
+    loadWearable().then(refresh); // 穿戴体温序列 → 体温双相指标
+  }, []));
 
   // 数据持久化闭环：从统一存储层派生真实周期与指标趋势
   const summaries = getCycleSummaries(6);
-  const INDICATOR_TRENDS = getIndicatorTrendsData();
+  // 体温双相从 wearableStore 真实体温序列派生（原 periodStore 恒空）
+  const INDICATOR_TRENDS = {
+    ...getIndicatorTrendsData(),
+    temp_biphasic: getTempBiphasicTrends(),
+  };
 
   // 最后一段「周期长度」未知（无下一段）→ 用历史平均兜底并标注 *
   const knownDays = summaries.map(d => d.cycleDays).filter(v => v !== null && v !== undefined);

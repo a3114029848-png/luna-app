@@ -9,6 +9,7 @@ import RecordBottomSheet from '../components/RecordBottomSheet';
 import { getCycleProgress, calcAverageCycle, getPhaseForDate } from '../utils/cycleCalculator';
 import { getCycleHistory, saveDayRecord, fmtKeyFromCN, loadAll } from '../services/periodStore';
 import { consumeOpenRecord } from '../services/uiBridge';
+import { getLiveData, loadWearable } from '../services/wearableStore';
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -28,23 +29,16 @@ const PHASE_TIPS = {
   predicted:  '按你的周期规律，预计近期可能来潮。留意身体信号，来潮后记得在「日历」标记或在「今日」记录。',
 };
 
-// 模拟穿戴设备数据（实际项目从 HealthKit / HUAWEI Health Kit 获取）
-const WEARABLE = {
-  temperature: '36.8°',
-  heartRate:   '72 bpm',
-  sleep:       '6.5 h',
-  hrv:         '42 ms',
-};
-//https://github.com/a3114029848-png/luna-app.git
 export default function HomeScreen() {
   const { theme } = useTheme();
   const [sheetVisible, setSheetVisible] = useState(false);
   const [, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
 
-  // 数据持久化闭环：聚焦时加载统一存储层并刷新（记录/日历编辑后切回本页能看到最新阶段）
+// 数据持久化闭环：聚焦时加载统一存储层并刷新（记录/日历编辑后切回本页能看到最新阶段）
   useFocusEffect(useCallback(() => {
     loadAll().then(refresh);
+    loadWearable().then(refresh); // 穿戴数据：连接状态/体温序列聚焦时同步
     // 跨页引导：日历请求「打开今日完整记录弹窗」→ 本页聚焦时消费并打开
     if (consumeOpenRecord()) setSheetVisible(true);
   }, []));
@@ -111,22 +105,28 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* 穿戴数据卡片 */}
+        {/* 穿戴设备数据（来自 wearableStore：连接则显示模拟实时数据，未连接显示引导） */}
         <View style={s.card}>
           <Text style={[s.ctitle, { color: theme.primary }]}>穿戴设备数据</Text>
-          <View style={s.statsGrid}>
-            {[
-              { val: WEARABLE.temperature, lbl: '基础体温' },
-              { val: WEARABLE.heartRate,   lbl: '静息心率' },
-              { val: WEARABLE.sleep,       lbl: '睡眠时长' },
-              { val: WEARABLE.hrv,         lbl: 'HRV' },
-            ].map(({ val, lbl }) => (
-              <View key={lbl} style={[s.statCard, { backgroundColor: theme.light }]}>
-                <Text style={[s.statVal, { color: theme.primary }]}>{val}</Text>
-                <Text style={s.statLbl}>{lbl}</Text>
-              </View>
-            ))}
-          </View>
+          {getLiveData() ? (
+            <View style={s.statsGrid}>
+              {[
+                { val: getLiveData().temperature, lbl: '基础体温' },
+                { val: getLiveData().heartRate,   lbl: '静息心率' },
+                { val: getLiveData().sleep,       lbl: '睡眠时长' },
+                { val: getLiveData().hrv,         lbl: 'HRV' },
+              ].map(({ val, lbl }) => (
+                <View key={lbl} style={[s.statCard, { backgroundColor: theme.light }]}>
+                  <Text style={[s.statVal, { color: theme.primary }]}>{val}</Text>
+                  <Text style={s.statLbl}>{lbl}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={{ fontSize: 13, color: '#888', lineHeight: 20 }}>
+              未连接穿戴设备。前往「我的」→「健康数据授权」开启后，这里会显示基础体温、心率等实时数据，并用于排卵/体温双相判断。
+            </Text>
+          )}
         </View>
 
         {/* 今日提示：由当前阶段派生（真实记录推算，不编造体温等假数据） */}

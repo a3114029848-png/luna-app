@@ -6,6 +6,8 @@ import {
 import { useTheme } from '../theme/ThemeContext';
 import { getUser, loadUser, saveUser } from '../services/userStore';
 import { getCycleHistory, loadAll } from '../services/periodStore';
+import { loadWearable, toggleConnection } from '../services/wearableStore';
+import { syncHealthData } from '../services/api';
 
 const SETTINGS = [
   { id: 'watch',        label: '健康数据授权', sub: 'Apple Watch 已连接', type: 'toggle' },
@@ -35,8 +37,10 @@ const ABOUT_TEXT = `Luna v1.0.0 · 经期健康管理 + 就医衔接
 
 export default function ProfileScreen() {
   const { theme, changeTheme, presets } = useTheme();
-  const [toggles, setToggles] = useState({ watch: true, notification: true });
+  const [toggles, setToggles] = useState({ notification: true });
   const [user, setUser] = useState(getUser());
+  // 穿戴设备连接状态（来自 wearableStore，持久化）
+  const [wearable, setWearable] = useState({ connected: false, lastSyncAt: null });
   const [, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
 
@@ -52,9 +56,30 @@ export default function ProfileScreen() {
   useEffect(() => {
     loadUser().then(u => { setUser(u); });
     loadAll().then(() => refresh());
+    loadWearable().then(s => setWearable(s));
   }, []);
 
   const toggleSwitch = (id) => setToggles(prev => ({ ...prev, [id]: !prev[id] }));
+
+  // 健康数据授权：连接/断开模拟穿戴设备（状态持久化）+ 云端同步
+  const onWatchToggle = async () => {
+    const s = await toggleConnection();
+    setWearable(s);
+    if (s.connected) {
+      // 连接后上报到后端 /api/health-data/sync（SQLite 持久化），验证「设备→云端」链路
+      try {
+        await syncHealthData('luna-demo-user', 'sim-watch', {
+          status: 'connected', connectedAt: new Date().toISOString(),
+        });
+      } catch (err) { /* 后端不可用：仅本地连接 */ }
+    }
+  };
+
+  // 开关渲染辅助：watch 走真实连接状态，其余走本地开关
+  const isWatchOn = () => !!wearable.connected;
+  const watchSub = () => wearable.connected
+    ? `已连接 · 最后同步 ${wearable.lastSyncAt ? new Date(wearable.lastSyncAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'}`
+    : '未连接 · 点击开启模拟设备';
 
   const openEdit = () => {
     setNickname(user.nickname || '');
@@ -123,29 +148,34 @@ export default function ProfileScreen() {
         </View>
 
         <View style={s.card}>
-          {SETTINGS.map((item, i) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[s.settingRow, i < SETTINGS.length - 1 && { borderBottomWidth: 0.5, borderBottomColor: '#e0ede8' }]}
-              onPress={() => onSettingPress(item)}
-              activeOpacity={item.type === 'arrow' ? 0.6 : 1}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={s.settingLabel}>{item.label}</Text>
-                {item.sub ? <Text style={s.settingSub}>{item.sub}</Text> : null}
-              </View>
-              {item.type === 'toggle' ? (
-                <Switch
-                  value={toggles[item.id]}
-                  onValueChange={() => toggleSwitch(item.id)}
-                  trackColor={{ false: '#e0ede8', true: theme.primary }}
-                  thumbColor="#fff"
-                />
-              ) : (
-                <Text style={{ color: '#ccc', fontSize: 18 }}>›</Text>
-              )}
-            </TouchableOpacity>
-          ))}
+          {SETTINGS.map((item, i) => {
+            const isWatch = item.id === 'watch';
+            const subText = isWatch ? watchSub() : item.sub;
+            const switchValue = isWatch ? isWatchOn() : !!toggles[item.id];
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[s.settingRow, i < SETTINGS.length - 1 && { borderBottomWidth: 0.5, borderBottomColor: '#e0ede8' }]}
+                onPress={() => onSettingPress(item)}
+                activeOpacity={item.type === 'arrow' ? 0.6 : 1}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.settingLabel}>{item.label}</Text>
+                  {subText ? <Text style={s.settingSub}>{subText}</Text> : null}
+                </View>
+                {item.type === 'toggle' ? (
+                  <Switch
+                    value={switchValue}
+                    onValueChange={() => (isWatch ? onWatchToggle() : toggleSwitch(item.id))}
+                    trackColor={{ false: '#e0ede8', true: theme.primary }}
+                    thumbColor="#fff"
+                  />
+                ) : (
+                  <Text style={{ color: '#ccc', fontSize: 18 }}>›</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
         <View style={{ height: 24 }} />
       </ScrollView>
