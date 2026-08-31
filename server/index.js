@@ -30,9 +30,9 @@ app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 3000;
 
-// ── 存储层：SQLite（better-sqlite3），取代原轻量 JSON 文件（records.json）──
+// ── 存储层：SQLite（sql.js，纯 WASM 免编译；Windows 服务器无编译环境）──
+// 注意：初始化是异步的（加载 WASM），app.listen 在文件底部 storage.init().then() 中执行
 const storage = require('./db');
-storage.migrateLegacy();
 
 // ── 服务端医学知识库（可溯源 RAG）──
 const { searchKB } = require('./medicalKB');
@@ -132,26 +132,26 @@ app.post('/api/ai/chat', async (req, res) => {
   }
 });
 
-// ── 记录云同步（SQLite）──────────────────────
-app.post('/api/records', (req, res) => {
+// ── 记录云同步（SQLite sql.js）────────────────
+app.post('/api/records', async (req, res) => {
   const { userId, record } = req.body || {};
   if (!userId || !record || !record.date) {
     return res.status(400).json({ error: 'userId & record{date} required' });
   }
-  const merged = storage.saveRecord(userId, record);
+  const merged = await storage.saveRecord(userId, record);
   res.json({ ok: true, date: merged.date });
 });
 
-app.get('/api/records/:userId', (req, res) => {
-  res.json({ records: storage.getRecords(req.params.userId) });
+app.get('/api/records/:userId', async (req, res) => {
+  res.json({ records: await storage.getRecords(req.params.userId) });
 });
 
-app.get('/api/cycles/:userId', (req, res) => {
-  res.json({ records: storage.getRecords(req.params.userId) });
+app.get('/api/cycles/:userId', async (req, res) => {
+  res.json({ records: await storage.getRecords(req.params.userId) });
 });
 
-app.post('/api/export/:userId', (req, res) => {
-  const records = storage.getRecords(req.params.userId);
+app.post('/api/export/:userId', async (req, res) => {
+  const records = await storage.getRecords(req.params.userId);
   res.json({
     userId: req.params.userId,
     recordCount: Object.keys(records).length,
@@ -160,15 +160,15 @@ app.post('/api/export/:userId', (req, res) => {
 });
 
 // ── 穿戴设备数据同步 ─────────────────────────
-app.post('/api/health-data/sync', (req, res) => {
+app.post('/api/health-data/sync', async (req, res) => {
   const { userId, source, records } = req.body || {};
   if (!userId) return res.status(400).json({ error: 'userId required' });
-  storage.saveHealth(userId, { source, records, syncedAt: new Date().toISOString() });
+  await storage.saveHealth(userId, { source, records, syncedAt: new Date().toISOString() });
   res.json({ ok: true });
 });
 
-app.get('/api/health-data/status/:userId', (req, res) => {
-  const h = storage.getHealth(req.params.userId);
+app.get('/api/health-data/status/:userId', async (req, res) => {
+  const h = await storage.getHealth(req.params.userId);
   res.json({ synced: !!h, source: h ? h.source : null, syncedAt: h ? h.syncedAt : null });
 });
 
@@ -329,18 +329,24 @@ app.get('/health', (req, res) => {
   res.json({ ok: true, name: 'luna-server', time: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
-  console.log(`Luna server running on http://localhost:${PORT}`);
-  // 打印局域网地址，供真机连接
-  const nets = os.networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name] || []) {
-      if (net.family === 'IPv4' && !net.internal) {
-        console.log(`  LAN (真机用): http://${net.address}:${PORT}/api`);
+// ── 启动：SQLite(sql.js) 异步初始化完成后监听 ──
+storage.init().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Luna server running on http://localhost:${PORT}`);
+    // 打印局域网地址，供真机连接
+    const nets = os.networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] || []) {
+        if (net.family === 'IPv4' && !net.internal) {
+          console.log(`  LAN (真机用): http://${net.address}:${PORT}/api`);
+        }
       }
     }
-  }
-  if (!DEEPSEEK_API_KEY) {
-    console.warn('⚠️  DEEPSEEK_API_KEY 未配置，AI 代理将返回错误（请复制 .env.example 为 .env 并填入）');
-  }
+    if (!DEEPSEEK_API_KEY) {
+      console.warn('⚠️  DEEPSEEK_API_KEY 未配置，AI 代理将返回错误（请复制 .env.example 为 .env 并填入）');
+    }
+  });
+}).catch(err => {
+  console.error('❌ 存储初始化失败：', err.message);
+  process.exit(1);
 });

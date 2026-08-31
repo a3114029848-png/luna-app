@@ -5,11 +5,14 @@
 //   - 推荐走后端代理 `server/`（DeepSeek Key 只存服务端，客户端不接触）
 //   - `deepseekChatStream` 保留为「无后端时的本地直连 fallback」（仅开发）
 //
-// BASE_URL 配置：
-//   - 真机（推荐）：经 adb reverse 走 USB 直连电脑，使用 http://127.0.0.1:3000/api
-//     （建立转发：adb reverse tcp:3000 tcp:3000；USB 断开/重启后需重设）
+// BASE_URL 配置（2026-08-31 已部署腾讯云 Windows Server）：
+//   - 发布版（release / 分发）：公网后端 http://49.232.49.16:3000/api
+//   - 开发调试（真机 adb reverse）：http://127.0.0.1:3000/api（建立转发 adb reverse tcp:3000 tcp:3000）
 //   - Android 模拟器：http://10.0.2.2:3000/api
-export const BASE_URL = 'http://127.0.0.1:3000/api';
+// 通过 __DEV__ 自动切换：release 走公网服务器，开发构建走本地（无需手动改）
+export const BASE_URL = __DEV__
+  ? 'http://127.0.0.1:3000/api'
+  : 'http://49.232.49.16:3000/api';
 
 // 本地直连 DeepSeek（仅开发 fallback；生产必须走后端代理）
 // ⚠️ 安全（2026-08-30）：Key 只存在 server/.env，客户端代码不得写死。

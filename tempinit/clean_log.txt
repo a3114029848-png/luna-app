@@ -1,0 +1,13 @@
+=== CLEAN_START === 
+--- DEL OLD .gradle (C) --- 
+GRADLE_DELETED 
+--- NPM CACHE - --- 
+new_cache=
+E:\npm-cache
+--- DEL OLD NPM CACHE (C) --- 
+NPM_CACHE_DELETED 
+--- VERIFY --- 
+GRADLE_GONE_OK 
+E_GRADLE_HOME_OK 
+E_NPM_CACHE_OK 
+=== CLEAN_DONE === 

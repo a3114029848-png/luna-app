@@ -1,0 +1,2 @@
+@echo off
+node -e "fetch('http://49.232.49.16:3000/api/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:'public-test',record:{date:'2026-8-31',type:'period',flow:3}})}).then(r=>r.text()).then(t=>console.log('PUB_SAVE:'+t)).catch(e=>console.log('PUB_SAVE_ERR:'+e.message)).then(()=>fetch('http://49.232.49.16:3000/api/records/public-test').then(r=>r.text()).then(t=>console.log('PUB_READ:'+t)).catch(e=>console.log('PUB_READ_ERR:'+e.message)))"

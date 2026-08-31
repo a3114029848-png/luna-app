@@ -1,0 +1,16 @@
+=== GRADLE_USER_HOME (user level) === 
+
+HKEY_CURRENT_USER\Environment
+    GRADLE_USER_HOME    REG_SZ    E:\gradle-home
+
+=== GRADLE_USER_HOME (current proc) === 
+E:\gradle-home 
+=== NPM_CACHE === 
+C:\Users\vincent\AppData\Local\npm-cache
+ 
+=== NPM_PREFIX === 
+C:\Users\vincent\AppData\Roaming\npm
+ 
+=== E_GRADLE_EXISTS === 
+YES 
+=== DONE === 

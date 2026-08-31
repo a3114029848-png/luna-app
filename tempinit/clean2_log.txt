@@ -1,0 +1,16 @@
+=== CLEAN2_START === 
+--- stop gradle daemon --- 
+Stopping Daemon(s)
+1 Daemon stopped
+--- rmdir old .gradle --- 
+The system cannot find the file specified.
+--- verify .gradle --- 
+GRADLE_GONE 
+--- npm cache - --- 
+new_cache: 
+E:\npm-cache
+--- rmdir old npm cache --- 
+The system cannot find the file specified.
+--- verify npm cache dir --- 
+NPMCACHE_GONE 
+=== CLEAN2_DONE === 

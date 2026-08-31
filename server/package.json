@@ -7,9 +7,9 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "pdfkit": "^0.20.2"
+    "pdfkit": "^0.20.2",
+    "sql.js": "^1.12.0"
   }
 }

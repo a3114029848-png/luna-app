@@ -1,0 +1,19 @@
+=== DIST_START === 
+--- copy apk --- 
+        1 file(s) copied.
+--- write readme --- 
+--- zip --- 
+--- list --- 
+ Volume in drive D is D
+ Volume Serial Number is 1888-EE70
+
+ Directory of d:\Luna\dist
+
+2026/08/31  18:14    <DIR>          .
+2026/08/31  18:14    <DIR>          ..
+2026/08/31  17:48        71,187,274 Luna-v1.0.apk
+2026/08/31  18:14        28,478,935 Luna-微信安装包.zip
+2026/08/31  18:14               518 安装说明.txt
+               3 File(s)     99,666,727 bytes
+               2 Dir(s)  29,616,500,736 bytes free
+=== DIST_DONE === 

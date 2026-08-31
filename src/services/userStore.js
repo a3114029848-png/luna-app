@@ -52,3 +52,25 @@ export async function saveUser(partial) {
 export function getUser() {
   return _cache;
 }
+
+// ── 设备级匿名用户 ID（云同步数据隔离）──
+// 每台设备首次启动生成随机 ID（不采集任何身份信息），用于后端 records 按 userId 隔离。
+const DEVICE_ID_KEY = '@luna_device_id';
+
+export async function getDeviceUserId() {
+  let id = null;
+  try {
+    if (AsyncStorage && typeof AsyncStorage.getItem === 'function') {
+      id = await AsyncStorage.getItem(DEVICE_ID_KEY);
+    }
+  } catch (err) { /* ignore */ }
+  if (!id) {
+    id = 'u_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    try {
+      if (AsyncStorage && typeof AsyncStorage.setItem === 'function') {
+        await AsyncStorage.setItem(DEVICE_ID_KEY, id);
+      }
+    } catch (err) { /* ignore */ }
+  }
+  return id;
+}

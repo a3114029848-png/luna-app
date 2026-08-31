@@ -1,0 +1,6 @@
+@echo off
+powershell -NoProfile -Command "$d='C:\Users\vincent\.gradle'; if(Test-Path $d){$s=(Get-ChildItem $d -Recurse -Force -EA SilentlyContinue|Measure-Object Length -Sum).Sum; ('USER_GRADLE='+[math]::Round($s/1GB,2)+'GB')|Out-File d:\Luna\tempinit\csize.txt}else{'USER_GRADLE=MISSING'|Out-File d:\Luna\tempinit\csize.txt}"
+powershell -NoProfile -Command "$d='C:\Users\vincent\AppData\Local\Android\Sdk'; if(Test-Path $d){$s=(Get-ChildItem $d -Recurse -Force -EA SilentlyContinue|Measure-Object Length -Sum).Sum; ('SDK='+[math]::Round($s/1GB,2)+'GB')|Out-File -Append d:\Luna\tempinit\csize.txt}else{'SDK=MISSING'|Out-File -Append d:\Luna\tempinit\csize.txt}"
+powershell -NoProfile -Command "$d=$env:TEMP; if(Test-Path $d){$s=(Get-ChildItem $d -Recurse -Force -EA SilentlyContinue|Measure-Object Length -Sum).Sum; ('TEMP='+[math]::Round($s/1GB,2)+'GB')|Out-File -Append d:\Luna\tempinit\csize.txt}else{'TEMP=MISSING'|Out-File -Append d:\Luna\tempinit\csize.txt}"
+powershell -NoProfile -Command "$d='E:\gradle-home'; if(Test-Path $d){$s=(Get-ChildItem $d -Recurse -Force -EA SilentlyContinue|Measure-Object Length -Sum).Sum; ('E_GRADLE='+[math]::Round($s/1GB,2)+'GB')|Out-File -Append d:\Luna\tempinit\csize.txt}else{'E_GRADLE=MISSING'|Out-File -Append d:\Luna\tempinit\csize.txt}"
+echo DONE >> d:\Luna\tempinit\csize.txt
