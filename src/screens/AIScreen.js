@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   FlatList, KeyboardAvoidingView, Platform, SafeAreaView,
 } from 'react-native';
-import { deepseekChatStream } from '../services/api';
+import { deepseekChatStream, chatStreamViaProxy } from '../services/api';
 import { handle as handleLocal } from '../services/agentTools';
 import { saveFeedback } from '../services/feedbackStore';
 import { useTheme } from '../theme/ThemeContext';
@@ -14,7 +14,7 @@ const SYSTEM_PROMPT =
   '必须遵守：\n' +
   '1. 你不是医生，不能诊断，不能开药；涉及健康判断时，以"以上为健康科普参考，不构成医疗诊断"结尾。\n' +
   '2. 涉及剧烈腹痛、大量出血、疑似怀孕/宫外孕/流产等紧急或诊断性问题，必须引导立即就医，不得猜测性回答。\n' +
-  '3. 引用医学信息时尽量给出依据来源（如 FIGO 标准、公开指南）；无法确认来源时说明这是通用建议。\n' +
+  '3. 医学信息必须标注来源，格式为相关句末「（来源：XXX）」，来源仅限可信标准（如 FIGO 标准、公开指南、通用科普共识）；严禁编造来源（如捏造研究/文献/年份）；无法确认来源时标注「（通用建议）」。\n' +
   '4. 回答简洁、可落地、有同理心，不要堆砌术语。\n' +
   '5. 可以使用用户提供的周期/症状数据，但只能做描述与提醒，不得下"你得病了"类结论。';
 
@@ -65,11 +65,20 @@ export default function AIScreen() {
         ...messages.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
         { role: 'user', content: text },
       ];
-      await deepseekChatStream(history, (chunk) => {
-        setMessages(prev => prev.map(m =>
-          m.id === aiMsg.id ? { ...m, text: m.text + chunk } : m
-        ));
-      });
+      // 优先走后端代理（Key 在服务端，安全）；后端不可用则降级本地直连（仅开发）
+      try {
+        await chatStreamViaProxy(history, (chunk) => {
+          setMessages(prev => prev.map(m =>
+            m.id === aiMsg.id ? { ...m, text: m.text + chunk } : m
+          ));
+        });
+      } catch (proxyErr) {
+        await deepseekChatStream(history, (chunk) => {
+          setMessages(prev => prev.map(m =>
+            m.id === aiMsg.id ? { ...m, text: m.text + chunk } : m
+          ));
+        });
+      }
     } catch (e) {
       setMessages(prev => prev.map(m =>
         m.id === aiMsg.id ? { ...m, text: `⚠️ 云端请求失败：${e.message || '请稍后重试'}。本地分析与知识库仍可用。` } : m

@@ -1,4 +1,0 @@
-D:/Luna/android/app/.cxx/Debug/26a20d1d/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/foo.dir
-D:/Luna/android/app/.cxx/Debug/26a20d1d/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/boo.dir
-D:/Luna/android/app/.cxx/Debug/26a20d1d/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/edit_cache.dir
-D:/Luna/android/app/.cxx/Debug/26a20d1d/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/rebuild_cache.dir

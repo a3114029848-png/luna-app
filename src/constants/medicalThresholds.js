@@ -33,6 +33,7 @@ export const MEDICAL_INDICATORS = [
     label: '腹痛程度',
     icon: 'ti-bolt',
     alertLevel: (trend) => {
+      if (!trend || trend.length === 0) return 'normal'; // 无记录不误判
       // 连续2期中度及以上 → 建议就医
       const recent = trend.slice(-2);
       if (recent.every(v => v >= 2)) return 'danger';
@@ -45,6 +46,7 @@ export const MEDICAL_INDICATORS = [
     label: '血块情况',
     icon: 'ti-droplets',
     alertLevel: (trend) => {
+      if (!trend || trend.length === 0) return 'normal'; // 无记录不误判
       if (trend.slice(-1)[0] >= 2) return 'danger';
       if (trend.some(v => v >= 1)) return 'warning';
       return 'normal';
@@ -56,6 +58,7 @@ export const MEDICAL_INDICATORS = [
     icon: 'ti-alert-triangle',
     // FIGO AUB-E：经间期出血1次即为就医指征
     alertLevel: (trend) => {
+      if (!trend || trend.length === 0) return 'normal'; // 无记录不误判
       if (trend.slice(-1)[0] >= 1) return 'danger';
       return 'normal';
     },
@@ -66,6 +69,7 @@ export const MEDICAL_INDICATORS = [
     label: '乳房胀痛',
     icon: 'ti-ripple',
     alertLevel: (trend) => {
+      if (!trend || trend.length === 0) return 'normal'; // 无记录不误判
       if (trend.every(v => v >= 3)) return 'danger';
       if (trend.some(v => v >= 2)) return 'warning';
       return 'normal';
@@ -76,6 +80,7 @@ export const MEDICAL_INDICATORS = [
     label: '体温双相特征',
     icon: 'ti-temperature',
     alertLevel: (trend) => {
+      if (!trend || trend.length === 0) return 'normal'; // 无记录不误判
       // trend 为 boolean[]：true = 当期有双相
       if (trend.every(v => v === true)) return 'normal';
       if (trend.some(v => v === false)) return 'warning';
@@ -87,6 +92,7 @@ export const MEDICAL_INDICATORS = [
     label: '经前情绪低落',
     icon: 'ti-mood-sad',
     alertLevel: (trend) => {
+      if (!trend || trend.length === 0) return 'normal'; // 无记录不误判
       const recent = trend.slice(-2);
       if (recent.every(v => v >= 2) && recent[1] > recent[0]) return 'warning';
       return 'normal';

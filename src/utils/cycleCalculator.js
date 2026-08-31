@@ -42,8 +42,9 @@ export function calcAverageCycle(cycleHistory) {
  * @returns {'period'|'follicular'|'ovulation'|'luteal'|'predicted'|null}
  */
 export function getPhaseForDate(date, lastPeriodStart, periodDuration, avgCycle) {
-  const d = new Date(date);
-  const start = new Date(lastPeriodStart);
+  // 规范到当天 00:00，避免「当前时刻」造成 dayOfCycle 偏移（当天记录应 = 第 1 天）
+  const d = new Date(date); d.setHours(0, 0, 0, 0);
+  const start = new Date(lastPeriodStart); start.setHours(0, 0, 0, 0);
   const dayOfCycle = Math.round((d - start) / (1000 * 60 * 60 * 24)) + 1;
 
   // 月经期（实测）
@@ -110,4 +111,38 @@ export function checkAlerts(recentCycles) {
   }
 
   return alerts;
+}
+
+/**
+ * 生成指定月份的「每日阶段/预测」map（算法推算，与用户手动标记分离）
+ * 用于日历：无手动标记的日期自动显示排卵/黄体浅色点，预测经期显示虚线。
+ * @param {number} year - 年份
+ * @param {number} month - 月份（1-12）
+ * @param {Array<{startDate:string,endDate:string}>} cycleHistory - 经期段（时间正序）
+ * @param {number} avgCycle - 平均周期（天）
+ * @returns {Object} { 'YYYY-M-D': 'period'|'follicular'|'ovulation'|'luteal'|'predicted' }
+ */
+export function getMonthPhaseMap(year, month, cycleHistory, avgCycle) {
+  const key = (y, m, d) => `${y}-${m}-${d}`;
+  const norm = dt => { const x = new Date(dt); x.setHours(0, 0, 0, 0); return x; };
+  const DAY = 86400000;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const map = {};
+  const segs = cycleHistory || [];
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = norm(new Date(year, month - 1, d));
+    // 找该天之前最近的经期段（作为推算基准；段开始日在日期之后则停止）
+    let last = null;
+    for (const seg of segs) {
+      const s = norm(new Date(seg.startDate + 'T00:00:00'));
+      if (s <= date) last = seg;
+      else break;
+    }
+    if (!last) continue; // 该天之前无经期记录 → 不推算
+    const start = norm(new Date(last.startDate + 'T00:00:00'));
+    const dur = Math.round((norm(new Date(last.endDate + 'T00:00:00')) - start) / DAY) + 1;
+    map[key(year, month, d)] = getPhaseForDate(date, start, dur, avgCycle);
+  }
+  return map;
 }

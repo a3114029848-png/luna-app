@@ -7,7 +7,8 @@
     "ios": "react-native run-ios",
     "start": "react-native start",
     "lint": "eslint .",
-    "test": "jest"
+    "test": "jest",
+    "test:eval": "node scripts/run_eval.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^1.24.0",
@@ -16,6 +17,7 @@
     "@react-navigation/native": "^6.1.18",
     "react": "19.2.3",
     "react-native": "0.86.0",
+    "react-native-image-picker": "^8.2.1",
     "react-native-safe-area-context": "^5.8.0",
     "react-native-screens": "^4.26.0",
     "react-native-svg": "^15.5.0"

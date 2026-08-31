@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Modal, TextInput,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useTheme } from '../theme/ThemeContext';
+import { getDayRecord, fmtKeyFromCN } from '../services/periodStore';
 
 /**
  * 记录分组配置
@@ -200,6 +201,20 @@ export default function RecordBottomSheet({ visible, onClose, onSave, date }) {
   const [values, setValues] = useState({});
   const [expandedGroup, setExpandedGroup] = useState('bleeding');
 
+  // 双向联动：打开时回填该天已有记录（日历标记的经期/症状等），而非默认空
+  useEffect(() => {
+    if (visible) {
+      const rec = getDayRecord(fmtKeyFromCN(date));
+      if (rec) {
+        const { date: _d, type: _t, images: _i, ...rest } = rec;
+        setValues(rest || {});
+      } else {
+        setValues({});
+      }
+      setExpandedGroup('bleeding');
+    }
+  }, [visible, date]);
+
   const setVal = (id, val) => setValues(prev => ({ ...prev, [id]: val }));
   const getVal = (id) => values[id];
 
@@ -213,14 +228,15 @@ export default function RecordBottomSheet({ visible, onClose, onSave, date }) {
 
   return (
     <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
-      <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose} />
-      <View style={[s.sheet, { borderTopColor: theme.mid }]}>
+      <View style={s.modalRoot}>
+        <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose} />
+        <View style={[s.sheet, { borderTopColor: theme.mid }]}>
         <View style={[s.handle, { backgroundColor: theme.mid }]} />
         <Text style={[s.sheetTitle, { color: theme.primary }]}>
           记录今日症状 · {date}
         </Text>
 
-        <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+        <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
           {RECORD_GROUPS.map(group => (
             <View key={group.id}>
               {/* 分组标签 */}
@@ -265,7 +281,7 @@ export default function RecordBottomSheet({ visible, onClose, onSave, date }) {
                     </View>
                   )}
 
-                  {/* 单选 chips */}
+                  {/* 单选 chips（再次点击已选项 = 取消勾选） */}
                   {item.type === 'chips' && (
                     <View style={[s.panel, { backgroundColor: theme.light }]}>
                       <View style={s.chipRow}>
@@ -279,7 +295,7 @@ export default function RecordBottomSheet({ visible, onClose, onSave, date }) {
                                 s.chip,
                                 selected && { backgroundColor: isDanger ? '#e63946' : theme.primary, borderColor: isDanger ? '#e63946' : theme.primary },
                               ]}
-                              onPress={() => setVal(item.id, opt)}
+                              onPress={() => setVal(item.id, selected ? undefined : opt)}
                             >
                               <Text style={[s.chipText, selected && { color: '#fff' }]}>{opt}</Text>
                             </TouchableOpacity>
@@ -373,14 +389,16 @@ export default function RecordBottomSheet({ visible, onClose, onSave, date }) {
           </TouchableOpacity>
           <View style={{ height: 16 }} />
         </ScrollView>
+        </View>
       </View>
     </Modal>
   );
 }
 
 const s = StyleSheet.create({
+  modalRoot:   { flex: 1, justifyContent: 'flex-end' },
   overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.38)' },
-  sheet:       { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '88%', borderTopWidth: 0.5, flex: 0 },
+  sheet:       { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '88%', borderTopWidth: 0.5, width: '100%' },
   handle:      { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', margin: 14 },
   sheetTitle:  { fontSize: 15, fontWeight: '600', paddingHorizontal: 16, marginBottom: 10 },
   groupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, marginTop: 4 },

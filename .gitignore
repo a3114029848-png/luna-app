@@ -5,13 +5,18 @@ android/app/build/
 *.log
 .expo/
 
-# 个人作品集文档（不上传公开仓库，本地保留）
-AI产品设计.md
-AI成本估算.md
-AI评测集.md
-工作日志.md
-智能耳机竞品分析.md
-竞品分析.md
-简历项目经历.md
-需求分析.md
-面试演示脚本.md
+# 环境变量（含密钥，禁止提交）
+.env
+server/.env
+
+# 运行时数据 / 构建产物（不上传）
+server/data/
+*.db
+*.db-shm
+*.db-wal
+android/app/.cxx/
+
+# 个人求职文档（不上传公开仓库，本地保留；根目录 .md 默认忽略，白名单保留 README/skill）
+/*.md
+!/README.md
+!/skill.md

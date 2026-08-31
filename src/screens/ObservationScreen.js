@@ -1,32 +1,18 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, SafeAreaView, Alert,
+  TouchableOpacity, SafeAreaView, Alert, Linking,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../theme/ThemeContext';
 import { FIGO, MEDICAL_INDICATORS, ALERT_STYLES } from '../constants/medicalThresholds';
 import { checkAlerts } from '../utils/cycleCalculator';
-
-// 模拟近三期数据（实际项目从后端 / AsyncStorage 读取）
-const CYCLE_DATA = [
-  { label: '第1期', cycleDays: 29, periodDays: 5, flowLevel: 2 },
-  { label: '第2期', cycleDays: 27, periodDays: 6, flowLevel: 3 },
-  { label: '第3期', cycleDays: 31, periodDays: 5, flowLevel: 1 },
-];
+import { getCycleSummaries, getIndicatorTrendsData, loadAll } from '../services/periodStore';
+import { BASE_URL } from '../services/api';
 
 const FLOW_LABELS = ['无', '点滴', '少量', '适中', '偏多'];
 const FLOW_RATIOS = [0, 0.25, 0.45, 0.65, 0.85];
-
-// 就医指标近三期趋势模拟数据（实际来自 RecordBottomSheet 保存的记录）
-const INDICATOR_TRENDS = {
-  pain:          [0, 1, 0],
-  clot:          [0, 2, 1],
-  imb:           [0, 0, 1],
-  breast:        [1, 1, 1],
-  temp_biphasic: [true, true, true],
-  mood:          [0, 2, 3],
-};
 
 function LineChart({ data, yMin, yMax, color, width = 300, height = 110, warnLine }) {
   const padL = 34, padB = 22, padT = 14, padR = 14;
@@ -86,6 +72,27 @@ function FlowBarChart({ data, theme }) {
 }
 
 function IndicatorRow({ config, trend }) {
+  const hasData = Array.isArray(trend) && trend.length > 0;
+  // 无记录：不误判为「正常」，明确展示「暂无记录」
+  if (!hasData) {
+    return (
+      <View style={s.indRow}>
+        <View style={[s.indIcon, { backgroundColor: '#f0f7f4' }]}>
+          <Text style={{ fontSize: 14 }}>·</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={s.indName}>{config.label}</Text>
+            <View style={[s.badge, { backgroundColor: '#f0f7f4' }]}>
+              <Text style={[s.badgeText, { color: '#999' }]}>暂无记录</Text>
+            </View>
+          </View>
+          <Text style={s.indDesc}>记录后自动评估趋势</Text>
+        </View>
+      </View>
+    );
+  }
+
   const level = config.alertLevel(trend);
   const style = ALERT_STYLES[level];
 
@@ -124,18 +131,82 @@ function IndicatorRow({ config, trend }) {
 export default function ObservationScreen() {
   const { theme } = useTheme();
   const [tab, setTab] = useState(0);
+  const [, setTick] = useState(0);
+  const refresh = () => setTick(t => t + 1);
+  // 聚焦时刷新：记录/编辑后切回本页立即看到最新趋势（含 PDF 导出按钮）
+  useFocusEffect(useCallback(() => { loadAll().then(refresh); }, []));
+
+  // 数据持久化闭环：从统一存储层派生真实周期与指标趋势
+  const summaries = getCycleSummaries(6);
+  const INDICATOR_TRENDS = getIndicatorTrendsData();
+
+  // 最后一段「周期长度」未知（无下一段）→ 用历史平均兜底并标注 *
+  const knownDays = summaries.map(d => d.cycleDays).filter(v => v !== null && v !== undefined);
+  const avgFallback = knownDays.length ? Math.round(knownDays.reduce((a, b) => a + b, 0) / knownDays.length) : 28;
+  const CYCLE_DATA = summaries.map(d => ({
+    ...d,
+    cycleDays: d.cycleDays ?? avgFallback,
+    label: d.label + (d.cycleDays == null ? ' *' : ''),
+  }));
 
   const cycleChartData  = CYCLE_DATA.map(d => ({ val: d.cycleDays, label: d.label }));
   const periodChartData = CYCLE_DATA.map(d => ({ val: d.periodDays, label: d.label }));
-
   const cycleLengths = CYCLE_DATA.map(d => d.cycleDays);
   const alerts = checkAlerts(cycleLengths);
   const avgCycle = Math.round(cycleLengths.reduce((a, b) => a + b, 0) / cycleLengths.length);
 
+  // 空态：还没有任何周期记录
+  if (CYCLE_DATA.length === 0) {
+    return (
+      <SafeAreaView style={[s.safe, { backgroundColor: '#f0f7f4' }]}>
+        <View style={[s.hdr, { backgroundColor: theme.primary }]}>
+          <Text style={s.hdrTitle}>观察</Text>
+          <Text style={s.hdrSub}>近三期周期综合对比 · 就医指标追踪</Text>
+        </View>
+        <View style={s.emptyWrap}>
+          <Text style={s.emptyTitle}>还没有周期记录</Text>
+          <Text style={s.emptyText}>
+            去「日历」标记经期日，或点「今日」记录症状后，Luna 会自动生成周期长度、经血量与就医指标趋势。
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // 导出复诊报告：组装数据 → 后端生成 PDF → 系统浏览器打开（可保存/分享给医生）
   const handleExport = () => {
-    Alert.alert('导出复诊报告', '报告将包含近三期周期数据及就医指标汇总，是否生成 PDF？', [
+    // 就医指标：趋势 + 状态（正常/关注/建议就医），由客户端 medicalThresholds 判定，后端据此渲染徽章
+    const indicators = {};
+    MEDICAL_INDICATORS.forEach(cfg => {
+      const trend = INDICATOR_TRENDS[cfg.id] || [];
+      indicators[cfg.id] = { trend, level: cfg.alertLevel(trend) };
+    });
+    const reportData = {
+      generatedAt: new Date().toISOString(),
+      avgCycle,
+      summaries: summaries.slice(-3),
+      alerts,
+      indicators,
+    };
+    Alert.alert('导出复诊报告', '将生成一份可交给医生的 PDF 报告（近三期周期 + 就医指标汇总）。', [
       { text: '取消', style: 'cancel' },
-      { text: '确认导出', onPress: () => console.log('export triggered') },
+      {
+        text: '生成并打开',
+        onPress: async () => {
+          try {
+            const res = await fetch(`${BASE_URL}/report`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reportData }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.url) throw new Error(json.error || '导出失败');
+            await Linking.openURL(json.url);
+          } catch (e) {
+            Alert.alert('导出失败', `请确认已启动后端服务（server）。\n${e.message || ''}`);
+          }
+        },
+      },
     ]);
   };
 
@@ -230,6 +301,9 @@ export default function ObservationScreen() {
 const s = StyleSheet.create({
   safe:        { flex: 1 },
   hdr:         { paddingTop: 16, paddingBottom: 20, paddingHorizontal: 16 },
+  emptyWrap:   { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  emptyTitle:  { fontSize: 16, fontWeight: '600', color: '#555', marginBottom: 10 },
+  emptyText:   { fontSize: 13, color: '#888', lineHeight: 20, textAlign: 'center' },
   hdrTitle:    { color: '#fff', fontSize: 20, fontWeight: '600' },
   hdrSub:      { color: 'rgba(255,255,255,0.72)', fontSize: 12, marginTop: 2 },
   scroll:      { flex: 1, padding: 14 },

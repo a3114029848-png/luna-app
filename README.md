@@ -66,6 +66,33 @@ npm start
 npm run android
 ```
 
+## 后端代理 + 云同步（推荐，生产安全）
+
+> 2026-08-30 新增：DeepSeek Key 移到服务端 `server/`，客户端不再持有 Key；记录支持云端备份与启动拉取合并。
+
+**启动后端：**
+
+```bash
+cd server
+# 首次：复制 .env.example 为 .env 并填入 DEEPSEEK_API_KEY
+npm install
+npm start   # 默认 http://localhost:3000，启动时打印真机可用的局域网地址
+```
+
+**客户端连接（`src/services/api.js` 的 `BASE_URL`）：**
+- Android 模拟器：`http://10.0.2.2:3000/api`（默认已是）
+- 真机：改为电脑局域网 IP（`npm start` 时会打印 `LAN (真机用): http://<IP>:3000/api`）
+
+**安全架构：**
+- DeepSeek Key 只存在 `server/.env`，客户端 App 永不接触
+- AI 对话：客户端 `chatStreamViaProxy` → 后端 `/api/ai/chat` → DeepSeek（SSE 透传）
+- 后端不可用时，客户端自动降级本地直连（`deepseekChatStream`，仅开发）
+- 记录云同步：保存后自动上报（`POST /api/records`），启动时拉取合并（本地优先，远端补缺）
+
+**后端接口：** `POST /api/ai/chat`（SSE）· `POST/GET /api/records(/:userId)` · `GET /api/cycles/:userId` · `POST /api/export/:userId` · `POST/GET /api/health-data/sync|status/:userId`
+
+---
+
 ## 本地 AI Demo 快速跑通（DeepSeek 直连）
 
 > ⚠️ 仅用于本地真机验证 / 面试演示。API Key 写在客户端会随包分发，**禁止提交 Git / 上架**，生产必须改为后端持有 Key 的代理。
@@ -82,8 +109,8 @@ npm run android
 
 ## 待接入项（TODO）
 
-- [ ] `services/api.js` 中 `BASE_URL` 替换为实际后端地址（云端 AI 已支持 DeepSeek 直连 demo；`BASE_URL` 为自建后端占位）
+- [x] `services/api.js` 的 `BASE_URL` 指向本地后端（`server/`，2026-08-30）；模拟器默认 `10.0.2.2:3000/api`，真机改局域网 IP
 - [ ] `HomeScreen.js` 穿戴数据接入 HealthKit（iOS）/ HUAWEI Health Kit（安卓）
-- [ ] `CalendarScreen.js` / `ObservationScreen.js` 数据源从模拟数据切换为 AsyncStorage + 后端同步
-- [ ] `AIScreen.js` 云端已直连 DeepSeek；生产建议改为后端代理 + 医学文献 RAG 知识库
+- [x] `CalendarScreen.js` / `ObservationScreen.js` / `HomeScreen.js` / AI 数据源切换为本地持久化（`src/services/periodStore.js` + AsyncStorage，2026-08-29）
+- [x] `AIScreen.js` 云端走后端代理（Key 在服务端，2026-08-30）；医学文献 RAG 知识库仍待接
 - [ ] 导出 PDF 复诊报告功能的具体实现（建议使用 `react-native-html-to-pdf` 或后端生成）
