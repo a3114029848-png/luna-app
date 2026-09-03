@@ -92,25 +92,3 @@ npm start   # 默认 http://localhost:3000，启动时打印真机可用的局�
 **后端接口：** `POST /api/ai/chat`（SSE）· `POST/GET /api/records(/:userId)` · `GET /api/cycles/:userId` · `POST /api/export/:userId` · `POST/GET /api/health-data/sync|status/:userId`
 
 ---
-
-## 本地 AI Demo 快速跑通（DeepSeek 直连）
-
-> ⚠️ 仅用于本地真机验证 / 面试演示。API Key 写在客户端会随包分发，**禁止提交 Git / 上架**，生产必须改为后端持有 Key 的代理。
-
-1. 打开 `src/services/api.js`，把 `DEEPSEEK_API_KEY` 改成你自己的 DeepSeek API Key
-2. 真机（USB 连接）：
-   - 终端1：`npm start`
-   - 终端2：`npm run android`
-3. 手机需可联网。到 AI 页输入知识库未覆盖的问题（如「经期可以吃止痛药吗」），即可看到 DeepSeek 流式回答
-4. 常见错误排查：
-   - `DeepSeek 401`：Key 无效或未填写
-   - `DeepSeek 402`：账号余额不足，需到 DeepSeek 开放平台充值
-   - 本地能力（周期分析 / 知识库 / 安全提示）不依赖网络，断网仍可用
-
-## 待接入项（TODO）
-
-- [x] `services/api.js` 的 `BASE_URL` 指向本地后端（`server/`，2026-08-30）；模拟器默认 `10.0.2.2:3000/api`，真机改局域网 IP
-- [ ] `HomeScreen.js` 穿戴数据接入 HealthKit（iOS）/ HUAWEI Health Kit（安卓）
-- [x] `CalendarScreen.js` / `ObservationScreen.js` / `HomeScreen.js` / AI 数据源切换为本地持久化（`src/services/periodStore.js` + AsyncStorage，2026-08-29）
-- [x] `AIScreen.js` 云端走后端代理（Key 在服务端，2026-08-30）；医学文献 RAG 知识库仍待接
-- [ ] 导出 PDF 复诊报告功能的具体实现（建议使用 `react-native-html-to-pdf` 或后端生成）
